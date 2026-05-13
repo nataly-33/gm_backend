@@ -11,7 +11,7 @@ import pandas as pd
 from django.db import connection
 
 # ── Modelos actuales ──────────────────────────────────────────────────────────
-from apps.users.models import User, Role, UserRole
+from apps.user.models import User, Role, UserRole
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
 from django.contrib.admin.models import LogEntry
 from django.contrib.sessions.models import Session

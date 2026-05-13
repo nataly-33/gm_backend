@@ -12,7 +12,7 @@ django.setup()
 import pandas as pd
 from faker import Faker
 
-from apps.users.models import User, Role, UserRole
+from apps.user.models import User, Role, UserRole
 
 fake = Faker('es_ES')   # nombres en español
 Faker.seed(42)          # reproducible: mismos nombres en cada máquina
