@@ -1,6 +1,7 @@
 import sys
 import os
 
+sys.stdout.reconfigure(encoding='utf-8')
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import django
@@ -11,7 +12,10 @@ import pandas as pd
 from django.db import connection
 
 # ── Modelos actuales ──────────────────────────────────────────────────────────
-from apps.user.models import User, Role, UserRole
+from apps.users.models import User, Role, UserRole
+from apps.credits.models import (
+    CreditPlan, UserSubscription, CreditTransaction, Payment, PaymentMethod
+)
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
 from django.contrib.admin.models import LogEntry
 from django.contrib.sessions.models import Session
@@ -52,30 +56,37 @@ def clear_table(label: str, manager):
 print(">>> Limpiando...")
 clear_table('BlacklistedToken (JWT)',         BlacklistedToken.objects)
 clear_table('OutstandingToken (JWT)',          OutstandingToken.objects)
+# Credits (orden: dependientes primero)
+clear_table('Payment',                         Payment.objects)
+clear_table('PaymentMethod',                   PaymentMethod.objects)
+clear_table('CreditTransaction',               CreditTransaction.objects)
+clear_table('UserSubscription',                UserSubscription.objects)
+clear_table('CreditPlan',                      CreditPlan.objects)
+# Users
 clear_table('UserRole',                        UserRole.objects)
 clear_table('User',                            User.objects)
 clear_table('Role',                            Role.objects)
 clear_table('LogEntry (admin logs)',           LogEntry.objects)
 clear_table('Session',                         Session.objects)
 
-# Agregar aquí cuando los modelos existan:
+# Agregar cuando los modelos existan:
 # from apps.songs.models import SongLike, GenerationJob, Song, Tag
-# from apps.credits.models import CreditTransaction, UserSubscription, CreditPlan
-# from apps.community.models import Play
-# clear_table('SongLike',         SongLike.objects)
-# clear_table('Play',             Play.objects)
-# clear_table('GenerationJob',    GenerationJob.objects)
-# clear_table('Song',             Song.objects)
-# clear_table('Tag',              Tag.objects)
-# clear_table('CreditTransaction',CreditTransaction.objects)
-# clear_table('UserSubscription', UserSubscription.objects)
-# clear_table('CreditPlan',       CreditPlan.objects)
+# from apps.community.models import SongPlay
+# clear_table('SongLike',      SongLike.objects)
+# clear_table('SongPlay',      SongPlay.objects)
+# clear_table('GenerationJob', GenerationJob.objects)
+# clear_table('Song',          Song.objects)
+# clear_table('Tag',           Tag.objects)
 
 # ── Resetear secuencias de autoincremento (PostgreSQL) ────────────────────────
 SEQUENCES = [
     'users_role_id_seq',
     'users_userrole_id_seq',
     'admin_logentry_id_seq',
+    'credit_plans_id_seq',
+    'credit_transactions_id_seq',
+    'payments_id_seq',
+    'payment_methods_id_seq',
 ]
 try:
     with connection.cursor() as cursor:

@@ -1,4 +1,4 @@
-# Guía: Redis + Celery en Windows (PowerShell)
+# Guía: Redis + Celery en Windows (PowerShell) — Opción WSL2
 
 > **¿Cuándo necesitás esto?**
 > Redis y Celery se usan solo cuando implementes la generación de canciones asíncrona (Sprint 1, Persona B).
@@ -26,9 +26,7 @@ Usuario → POST /api/songs/generate/
 
 ---
 
-## 1. Instalar Redis en Windows
-
-### Opción A — WSL2 (recomendada, viene con Windows 11)
+## 1. Verificar WSL2
 
 ```powershell
 # Verificar que WSL2 está instalado
@@ -38,37 +36,35 @@ wsl --list --verbose
 wsl --install
 ```
 
-Una vez que tenés WSL2 con Ubuntu, instalá Redis dentro:
+---
+
+## 2. Instalar Redis dentro de WSL2
 
 ```powershell
-# Instalar Redis dentro de WSL2 (solo la primera vez)
+# Solo la primera vez
 wsl sudo apt update
 wsl sudo apt install redis-server -y
 ```
 
-### Opción B — Scoop (gestor de paquetes para Windows)
+---
 
-```powershell
-# Instalar Scoop si no lo tenés
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+## 3. Configurar Redis para que Windows pueda conectarse
 
-# Instalar Redis con Scoop
-scoop install redis
-```
+> ⚠️ **Este paso es obligatorio.** Por defecto Redis en WSL2 solo escucha dentro de la VM Linux. Sin este cambio, Python en Windows recibe `Error 10061 connection refused`.
 
-### Opción C — Chocolatey
+Abrí una terminal WSL2 (escribí `wsl` en PowerShell) y ejecutá:
 
-```powershell
-# Requiere Chocolatey instalado (https://chocolatey.org/)
-choco install redis -y
+```bash
+# 1. Cambiar bind a todas las interfaces
+sudo sed -i 's/^bind 127.0.0.1.*/bind 0.0.0.0/' /etc/redis/redis.conf
+
+# 2. Verificar que quedó bien (debe mostrar: bind 0.0.0.0)
+grep "^bind" /etc/redis/redis.conf
 ```
 
 ---
 
-## 2. Iniciar Redis
-
-### Si usás WSL2 (Opción A):
+## 4. Iniciar Redis
 
 ```powershell
 # Iniciar el servidor Redis dentro de WSL2
@@ -78,19 +74,9 @@ wsl sudo service redis-server start
 wsl redis-cli ping
 ```
 
-### Si usás Scoop/Chocolatey (Opciones B y C):
-
-```powershell
-# Iniciar Redis como proceso
-redis-server
-
-# En otra terminal, verificar:
-redis-cli ping
-```
-
 ---
 
-## 3. Verificar la conexión Redis desde Python
+## 5. Verificar la conexión Redis desde Python
 
 Con el venv activado, desde `gm_backend/`:
 
@@ -101,7 +87,7 @@ python -c "import redis; r = redis.from_url('redis://localhost:6379/0'); print(r
 
 ---
 
-## 4. Iniciar el Worker de Celery
+## 6. Iniciar el Worker de Celery
 
 > ⚠️ **Windows requiere `--pool=solo`** — sin esta flag aparece un `PermissionError` en Windows.
 
@@ -132,7 +118,7 @@ Deberías ver algo como:
 
 ---
 
-## 5. Verificar que el worker responde
+## 7. Verificar que el worker responde
 
 En una **tercera terminal** (con venv activado):
 
@@ -148,47 +134,37 @@ Respuesta esperada:
 
 ---
 
-## 6. Flujo completo de desarrollo
+## 8. Flujo completo de desarrollo
 
 ```
-Terminal 1  →  python manage.py runserver          (Django API)
-Terminal 2  →  celery -A workers.celery worker -l info --pool=solo  (Worker)
-Terminal 3  →  wsl sudo service redis-server start  (Redis, solo WSL2)
-```
-
-Con Scoop/Chocolatey, Redis puede correr como servicio en background:
-```powershell
-# Registrar Redis como servicio de Windows (Scoop)
-redis-server --service-install
-Start-Service redis
+Terminal 1 (PowerShell) →  python manage.py runserver
+Terminal 2 (PowerShell) →  celery -A workers.celery worker -l info --pool=solo
+Terminal 3 (WSL2)       →  sudo service redis-server start
 ```
 
 ---
 
-## 7. Detener Redis
+## 9. Detener Redis
 
 ```powershell
-# WSL2:
 wsl sudo service redis-server stop
-
-# Windows nativo:
-redis-cli shutdown
-# o desde el administrador de servicios si está instalado como servicio
 ```
 
 ---
 
 ## Resumen rápido de comandos
 
-| Acción | Comando PowerShell |
+| Acción | Comando |
 | :--- | :--- |
-| Iniciar Redis (WSL2) | `wsl sudo service redis-server start` |
+| Instalar Redis (primera vez) | `wsl sudo apt install redis-server -y` |
+| Configurar bind (primera vez) | En terminal WSL2: `sudo sed -i 's/^bind 127.0.0.1.*/bind 0.0.0.0/' /etc/redis/redis.conf` |
+| Iniciar Redis | `wsl sudo service redis-server start` |
 | Verificar Redis | `wsl redis-cli ping` |
 | Verificar desde Python | `python -c "import redis; print(redis.from_url('redis://localhost:6379/0').ping())"` |
 | Iniciar Celery worker | `celery -A workers.celery worker -l info --pool=solo` |
 | Verificar worker activo | `celery -A workers.celery inspect ping` |
 | Ver tareas registradas | `celery -A workers.celery inspect registered` |
-| Detener Redis (WSL2) | `wsl sudo service redis-server stop` |
+| Detener Redis | `wsl sudo service redis-server stop` |
 
 ---
 
@@ -196,7 +172,7 @@ redis-cli shutdown
 
 | Error | Causa | Solución |
 | :--- | :--- | :--- |
-| `Error 10061 connection refused` | Redis no está corriendo | Iniciá Redis primero |
+| `Error 10061 connection refused` | Redis no configurado con `bind 0.0.0.0` o no está corriendo | Seguir el paso 3 y luego iniciar Redis |
 | `PermissionError WinError 5` | Celery usa `fork` en Windows | Agregar `--pool=solo` |
 | `No module named 'config'` | Script corrido desde carpeta incorrecta | Correr desde `gm_backend/` |
-| `PONG` no responde | Puerto 6379 bloqueado por firewall | Revisar reglas del firewall de Windows |
+| `PONG` no responde desde Python pero sí desde `wsl redis-cli` | Redis escucha solo en WSL2 (`bind 127.0.0.1`) | Seguir el paso 3 |
