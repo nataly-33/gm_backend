@@ -18,14 +18,30 @@ Formatted Tags:
 """
 
 LYRICS_GENERATOR_PROMPT = """
-Generate song lyrics based on the following description.
-The lyrics should be suitable for a song and structured clearly.
-Use tags like [verse], [chorus], [bridge], [intro], and [outro] to structure the song.
+You are an expert songwriter. Generate song lyrics based on the following description.
 
-Here is an example:
-"[verse]\nWoke up in a city that's always alive\nNeon lights they shimmer they thrive\nElectric pulses beat they drive\nMy heart races just to survive\n\n[chorus]\nOh electric dreams they keep me high\nThrough the wires I soar and fly\nMidnight rhythms in the sky\nElectric dreams together we’ll defy\n\n[verse]\nLost in the labyrinth of screens\nVirtual love or so it seems\nIn the night the city gleams\nDigital faces haunted by memes\n\n[chorus]\nOh electric dreams they keep me high\nThrough the wires I soar and fly\nMidnight rhythms in the sky\nElectric dreams together we’ll defy\n\n[bridge]\nSilent whispers in my ear\nPixelated love serene and clear\nThrough the chaos find you near\nIn electric dreams no fear\n\n[verse]\nBound by circuits intertwined\nLove like ours is hard to find\nIn this world we’re truly blind\nBut electric dreams free the mind"
+CRITICAL INSTRUCTION: The requested audio duration is {duration} seconds. 
+You MUST scale the length and structure of the lyrics to fit this time perfectly:
+- If duration is 30 to 45 seconds: Write strictly 1 [intro], 1 short [verse], and 1 [chorus].
+- If duration is 60 to 90 seconds: Write 1 [intro], 2 short [verse]s, and 1 [chorus].
+- If duration is 120 to 180 seconds: Write a full song: [intro], [verse 1], [chorus], [verse 2], [chorus], [bridge], and [outro].
 
-Description: "{description}"
+Write the lyrics in the EXACT SAME LANGUAGE as the user's description. Keep the rhythm natural.
+
+Example for a short 30-second duration:
+"[intro]
+(Guitar strum)
+Aquí vamos...
+
+[verse]
+Caminando por los anillos de la ciudad
+Buscando el código en la oscuridad
+
+[chorus]
+Porque la vida es una sola, ya lo sé
+Brillando fuerte hasta el amanecer"
+
+User Description: "{description}"
 
 Lyrics:
 """
