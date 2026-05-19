@@ -6,7 +6,7 @@ from django.utils import timezone
 def process_generation_job(self, job_id: str):
     from apps.songs.models import GenerationJob
     from apps.credits.services.credit_service import deduct_credits
-    from apps.notifications.services import notify_user
+    #from apps.notifications.services import notify_user
     from ml.modal_client import call_modal_endpoint, ModalGenerationError
 
     try:
@@ -45,7 +45,7 @@ def process_generation_job(self, job_id: str):
         job.save(update_fields=['credits_used', 'status', 'completed_at'])
 
         # 7. Notificar al usuario
-        notify_user(job.user, type='song_ready', reference_id=str(song.id))
+        #notify_user(job.user, type='song_ready', reference_id=str(song.id))
 
     except Exception as exc:
         try:
