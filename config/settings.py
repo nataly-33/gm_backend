@@ -158,6 +158,9 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
+#CELERY_TASK_ALWAYS_EAGER = True
+#CELERY_BROKER_URL = 'memory://'
+
 CELERY_BROKER_URL    = config('REDIS_URL', default='redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://localhost:6379/0')
 
@@ -167,7 +170,22 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
+# Amazon S3
+AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID', default='')
+AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY', default='')
+AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME', default='')
+AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-east-1')
+
 STRIPE_SECRET_KEY    = config('STRIPE_SECRET_KEY',    default='')
 STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET', default='')
 STRIPE_SUCCESS_URL   = config('STRIPE_SUCCESS_URL',   default='http://localhost:5173/credits?success=1')
 STRIPE_CANCEL_URL    = config('STRIPE_CANCEL_URL',    default='http://localhost:5173/credits?cancelled=1')
+
+# Mapeo de los Endpoints de Modal
+MODAL_ENDPOINT_FROM_DESCRIPTION = config('MODAL_ENDPOINT_FROM_DESCRIPTION', default='')
+MODAL_ENDPOINT_WITH_LYRICS = config('MODAL_ENDPOINT_WITH_LYRICS', default='')
+MODAL_ENDPOINT_FROM_DESCRIBED_LYRICS = config('MODAL_ENDPOINT_FROM_DESCRIBED_LYRICS', default='')
+
+# Credenciales de Modal
+MODAL_KEY = config('MODAL_KEY', default='')
+MODAL_SECRET = config('MODAL_SECRET', default='')
