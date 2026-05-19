@@ -35,18 +35,6 @@ gm-backend/
 │   │   ├── storage.py           # Wrapper de S3/R2 para subir/bajar archivos
 │   │   └── utils.py             # Funciones helper (generar tokens, validar audio, etc.)
 │   │
-│   ├── tenants/                 # Módulo: gestión multitenant
-│   │   ├── __init__.py
-│   │   ├── models.py            # Tenant
-│   │   ├── serializers.py
-│   │   ├── views.py             # CRUD de tenants (solo superadmin)
-│   │   ├── urls.py
-│   │   ├── services.py          # Lógica de negocio (crear tenant, activar, suspender)
-│   │   └── tests/
-│   │       ├── __init__.py
-│   │       ├── test_models.py
-│   │       └── test_views.py
-│   │
 │   ├── users/                   # Módulo: autenticación y usuarios
 │   │   ├── __init__.py
 │   │   ├── models.py            # User, Role, Permission, RolePermission, UserRole

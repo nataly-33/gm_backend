@@ -1,13 +1,52 @@
-venv/
+# Python
 __pycache__/
-*.pyc
-*.pyo
-.env
-*.sqlite3
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+vane/
+env/
+ENV/
+
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
 media/
 staticfiles/
+
+# Environment
+.env
+.env.production
+.env.*.local
+
+# Testing
 .coverage
 htmlcov/
-dist/
-*.egg-info/
 .pytest_cache/
+.tox/
+
+# OS
+.DS_Store
+Thumbs.db
+*.bak
+
+# Reports generados
+media/reports/*.pdf
+media/reports/*.xlsx
+
+# Ignorar modelos de IA y binarios
+*.pkl
+*.joblib
+models/
+ss_backend/models/
+__pycache__/
