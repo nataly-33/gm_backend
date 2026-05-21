@@ -38,10 +38,12 @@ class SongGenerateSerializer(serializers.Serializer):
 
 class SongLibrarySerializer(serializers.ModelSerializer):
     tags = TagSerializer(many=True, read_only=True)
+    audio_duration = serializers.FloatField(required=False, default=180.0, min_value=10.0, max_value=300.0)
+
 
     class Meta:
         model = Song
-        fields = ['id', 'title', 'status', 'audio_s3_key', 'thumbnail_s3_key', 'tags', 'created_at']
+        fields = ['id', 'title', 'status', 'audio_duration', 'audio_s3_key', 'thumbnail_s3_key', 'tags', 'created_at']
 
 
 class SongDetailSerializer(serializers.ModelSerializer):
