@@ -20,7 +20,7 @@ def call_modal_endpoint(endpoint_url: str, body: dict) -> dict:
     if not response.ok:
         raise ModalGenerationError(f"Modal {response.status_code}: {response.text[:300]}")
     data = response.json()
-    if 's3_key' not in data:
+    if 's3_key' not in data and 'stems' not in data:
         raise ModalGenerationError(f"Respuesta inesperada: {data}")
     return data
 
@@ -46,3 +46,22 @@ def get_presigned_url(s3_key: str, expiry_seconds: int = 3600) -> str:
 
 class ModalGenerationError(Exception):
     pass
+
+
+def upload_to_s3(file_obj, folder: str = '') -> str:
+    import boto3
+    import uuid
+    import os
+
+    s3 = boto3.client(
+        "s3",
+        region_name=settings.AWS_S3_REGION_NAME,
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+    )
+    file_ext = os.path.splitext(file_obj.name)[1]
+    unique_filename = f"{uuid.uuid4()}{file_ext}"
+    s3_key = f"{folder}/{unique_filename}" if folder else unique_filename
+    
+    s3.upload_fileobj(file_obj, settings.AWS_STORAGE_BUCKET_NAME, s3_key)
+    return s3_key

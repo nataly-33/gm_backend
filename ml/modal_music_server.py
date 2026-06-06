@@ -17,6 +17,7 @@ image = (
     .apt_install("git", "ffmpeg")
     .run_commands(["git clone https://github.com/ace-step/ACE-Step.git /tmp/ACE-Step", "cd /tmp/ACE-Step && pip install ."])
     .pip_install(
+        "demucs>=4.0.0",
         "transformers==4.50.0",
         "accelerate==1.6.0",
         "diffusers==0.33.0",
@@ -275,6 +276,51 @@ class MusicGenServer:
     @modal.fastapi_endpoint(method="GET")
     def health(self):
         return {"status": "ok", "model": "ace-step"}
+
+    @modal.fastapi_endpoint(method="POST")
+    def separate_stems(self, request: dict):
+        """
+        Separa un archivo de audio en pistas con Demucs.
+        Input:  { s3_key: str, stems: ['vocals', 'no_vocals'] }
+        Output: { stems: { vocals: s3_key, no_vocals: s3_key, ... } }
+        """
+        import demucs.separate
+        import boto3, tempfile, os
+        from pathlib import Path
+
+        s3 = boto3.client('s3',
+            aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+            region_name=os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
+        )
+
+        # Descargar el audio de S3 a un archivo temporal
+        with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp:
+            s3.download_fileobj(os.environ.get('AWS_STORAGE_BUCKET_NAME', 'gm-storage'), request['s3_key'], tmp)
+            input_path = tmp.name
+
+        # Separar con Demucs (modo two-stems: vocals vs no_vocals)
+        output_dir = tempfile.mkdtemp()
+        demucs.separate.main([
+            '--two-stems', 'vocals',
+            '--out', output_dir,
+            input_path
+        ])
+
+        # Subir los stems resultantes a S3
+        result = {}
+        base_name = Path(input_path).stem
+        model_dir = Path(output_dir) / 'htdemucs' / base_name
+
+        for stem_type in ['vocals', 'no_vocals']:
+            stem_file = model_dir / f'{stem_type}.wav'
+            if stem_file.exists():
+                s3_key = f"stems/{request['s3_key'].split('/')[-1]}/{stem_type}.wav"
+                s3.upload_file(str(stem_file), os.environ.get('AWS_STORAGE_BUCKET_NAME', 'gm-storage'), s3_key)
+                result[stem_type] = s3_key
+
+        return {'stems': result}
+
 
 
 @app.local_entrypoint()
