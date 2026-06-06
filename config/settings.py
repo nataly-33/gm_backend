@@ -158,8 +158,8 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
-#CELERY_TASK_ALWAYS_EAGER = True
-#CELERY_BROKER_URL = 'memory://'
+CELERY_TASK_ALWAYS_EAGER = False
+# CELERY_BROKER_URL = 'memory://'
 
 CELERY_BROKER_URL    = config('REDIS_URL', default='redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = config('REDIS_URL', default='redis://localhost:6379/0')
@@ -185,6 +185,7 @@ STRIPE_CANCEL_URL    = config('STRIPE_CANCEL_URL',    default='http://localhost:
 MODAL_ENDPOINT_FROM_DESCRIPTION = config('MODAL_ENDPOINT_FROM_DESCRIPTION', default='')
 MODAL_ENDPOINT_WITH_LYRICS = config('MODAL_ENDPOINT_WITH_LYRICS', default='')
 MODAL_ENDPOINT_FROM_DESCRIBED_LYRICS = config('MODAL_ENDPOINT_FROM_DESCRIBED_LYRICS', default='')
+MODAL_ENDPOINT_SEPARATE_STEMS = config('MODAL_ENDPOINT_SEPARATE_STEMS', default='')
 
 # Credenciales de Modal
 MODAL_KEY = config('MODAL_KEY', default='')

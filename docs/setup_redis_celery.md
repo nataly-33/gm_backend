@@ -57,9 +57,12 @@ Abrí una terminal WSL2 (escribí `wsl` en PowerShell) y ejecutá:
 ```bash
 # 1. Cambiar bind a todas las interfaces
 sudo sed -i 's/^bind 127.0.0.1.*/bind 0.0.0.0/' /etc/redis/redis.conf
+sudo nano /etc/redis/redis.conf
+#protected-mode yes → cambiá el yes por no. 
 
 # 2. Verificar que quedó bien (debe mostrar: bind 0.0.0.0)
-grep "^bind" /etc/redis/redis.conf
+sudo grep "^bind" /etc/redis/redis.conf
+#wsl sudo grep "^bind" /etc/redis/redis.conf
 ```
 
 ---

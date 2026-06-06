@@ -114,6 +114,27 @@ for _, p in planes_data.iterrows():
     accion = "creado   " if created else "actualizado"
     print(f"    {accion}: {plan.name} ({plan.credits_per_month} creditos/mes — ${plan.price_usd:.2f})")
 
+# ── 5. Tags (géneros, estados de ánimo, tempos) ───────────────────────────────
+print("\n>>> [5/5] Tags (géneros, estados de ánimo, tempos)")
+from apps.songs.models import Tag
+tags = pd.DataFrame([
+    {'name': 'reggaeton', 'category': 'genre'}, {'name': 'lofi',    'category': 'genre'},
+    {'name': 'techno',    'category': 'genre'}, {'name': 'pop',     'category': 'genre'},
+    {'name': 'sad',       'category': 'mood'},  {'name': 'happy',   'category': 'mood'},
+    {'name': 'energetic', 'category': 'mood'},  {'name': 'chill',   'category': 'mood'},
+    {'name': 'fast',      'category': 'tempo'}, {'name': 'slow',    'category': 'tempo'},
+])
+tags_created = 0
+tags_existing = 0
+for _, t in tags.iterrows():
+    _, created = Tag.objects.get_or_create(name=t['name'], defaults={'category': t['category']})
+    if created:
+        tags_created += 1
+    else:
+        tags_existing += 1
+
+print(f"    ✓ {tags_created} nuevos tags creados  |  {tags_existing} ya existían")
+
 # ── Resumen final ─────────────────────────────────────────────────────────────
 print()
 print("=" * 55)
@@ -122,6 +143,7 @@ print("=" * 55)
 print(f"  Total usuarios en BD : {User.objects.count()}")
 print(f"  Total roles          : {Role.objects.count()}")
 print(f"  Total planes         : {CreditPlan.objects.count()}")
+print(f"  Total tags           : {Tag.objects.count()}")
 print()
 print("  ADMIN")
 print(f"    email    : {ADMIN_EMAIL}")
@@ -131,15 +153,3 @@ print(f"  CLIENTES ({NUM_CLIENTS})")
 print(f"    emails   : cliente1@gmail.com - cliente{NUM_CLIENTS}@gmail.com")
 print(f"    password : {CLIENT_PASS}")
 print("=" * 55)
-
-# ── Tags (descomentar cuando apps.songs tenga el modelo Tag) ──────────────────
-# from apps.songs.models import Tag
-# tags = pd.DataFrame([
-#     {'name': 'reggaeton', 'category': 'genre'}, {'name': 'lofi',    'category': 'genre'},
-#     {'name': 'techno',    'category': 'genre'}, {'name': 'pop',     'category': 'genre'},
-#     {'name': 'sad',       'category': 'mood'},  {'name': 'happy',   'category': 'mood'},
-#     {'name': 'energetic', 'category': 'mood'},  {'name': 'chill',   'category': 'mood'},
-#     {'name': 'fast',      'category': 'tempo'}, {'name': 'slow',    'category': 'tempo'},
-# ])
-# for _, t in tags.iterrows():
-#     Tag.objects.get_or_create(name=t['name'], defaults={'category': t['category']})
