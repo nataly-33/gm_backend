@@ -118,11 +118,29 @@ for _, p in planes_data.iterrows():
 print("\n>>> [5/5] Tags (géneros, estados de ánimo, tempos)")
 from apps.songs.models import Tag
 tags = pd.DataFrame([
-    {'name': 'reggaeton', 'category': 'genre'}, {'name': 'lofi',    'category': 'genre'},
-    {'name': 'techno',    'category': 'genre'}, {'name': 'pop',     'category': 'genre'},
-    {'name': 'sad',       'category': 'mood'},  {'name': 'happy',   'category': 'mood'},
-    {'name': 'energetic', 'category': 'mood'},  {'name': 'chill',   'category': 'mood'},
-    {'name': 'fast',      'category': 'tempo'}, {'name': 'slow',    'category': 'tempo'},
+    # Géneros originales
+    {'name': 'reggaeton',  'category': 'genre'}, {'name': 'lofi',       'category': 'genre'},
+    {'name': 'techno',     'category': 'genre'}, {'name': 'pop',        'category': 'genre'},
+    # Géneros adicionales
+    {'name': 'bachata',    'category': 'genre'}, {'name': 'kpop',       'category': 'genre'},
+    {'name': 'rock',       'category': 'genre'}, {'name': 'electronic', 'category': 'genre'},
+    {'name': 'jazz',       'category': 'genre'}, {'name': 'ballad',     'category': 'genre'},
+    {'name': 'ranchera',   'category': 'genre'}, {'name': 'hip-hop',    'category': 'genre'},
+    {'name': 'cumbia',     'category': 'genre'}, {'name': 'salsa',      'category': 'genre'},
+    {'name': 'r&b',        'category': 'genre'}, {'name': 'folk',       'category': 'genre'},
+    {'name': 'latin',      'category': 'genre'}, {'name': 'urban',      'category': 'genre'},
+    {'name': 'classical',  'category': 'genre'}, {'name': 'acoustic',   'category': 'genre'},
+    # Moods originales
+    {'name': 'sad',        'category': 'mood'},  {'name': 'happy',      'category': 'mood'},
+    {'name': 'energetic',  'category': 'mood'},  {'name': 'chill',      'category': 'mood'},
+    # Moods adicionales
+    {'name': 'romantic',   'category': 'mood'},  {'name': 'melancholic','category': 'mood'},
+    {'name': 'nostalgic',  'category': 'mood'},  {'name': 'motivated',  'category': 'mood'},
+    {'name': 'dark',       'category': 'mood'},  {'name': 'playful',    'category': 'mood'},
+    {'name': 'angry',      'category': 'mood'},  {'name': 'hopeful',    'category': 'mood'},
+    # Tempos
+    {'name': 'fast',       'category': 'tempo'}, {'name': 'slow',       'category': 'tempo'},
+    {'name': 'medium',     'category': 'tempo'},
 ])
 tags_created = 0
 tags_existing = 0

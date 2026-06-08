@@ -8,7 +8,7 @@
 
 | Doc | HU cubiertas | Estado |
 |---|---|---|
-| `03_division_trabajo_FINAL.md` | HU-01 a HU-21 | Sprint 0 y 1 ✅ |
+| `01_division_trabajo.md` | HU-01 a HU-21 | Sprint 0 y 1 ✅ |
 | `06_division_trabajo_sprint23.md` | HU-22 a HU-28, HU-32 a HU-41 | Sprint 2 y 3 ✅ |
 | `07_ml_datos_sinteticos.md` | HU-29, HU-30, HU-31 | Sprint 2 — código listo, faltaba asignación |
 | **Este documento** | HU-29 a HU-31 (asignación formal) + HU-42 a HU-45 | Sprint 4 ✅ |

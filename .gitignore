@@ -50,3 +50,7 @@ media/reports/*.xlsx
 models/
 ss_backend/models/
 __pycache__/
+
+# ML — datos sintéticos y modelos entrenados (se regeneran con los scripts)
+ml/data/
+ml/models/*.pkl

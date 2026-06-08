@@ -41,9 +41,11 @@ music_gen_secrets = modal.Secret.from_name("music-gen-secret")
 class AudioGenerationBase(BaseModel):
     audio_duration: float = 180.0
     seed: int = -1
-    guidance_scale: float = 15.0
-    infer_step: int = 60
+    guidance_scale: float = 10.0
+    infer_step: int = 100
     instrumental: bool = False
+    vocal_type: str = 'auto'   # 'male' | 'female' | 'auto'
+    language: str = 'es'       # 'es' | 'en'
 
 
 class GenerateFromDescriptionRequest(AudioGenerationBase):
@@ -64,6 +66,7 @@ class GenerateMusicResponseS3(BaseModel):
     s3_key: str
     cover_image_s3_key: str
     categories: List[str]
+    lyrics: str = ""  # letra generada o provista, para guardarla en Django
 
 
 # ─── CAMBIO 1: scaledown_window aumentado a 300s (5 min) ───────────────────────
@@ -147,12 +150,79 @@ class MusicGenServer:
         ]
         return self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
-    def generate_prompt(self, description: str):
+    # ── Mapas de tags por idioma y tipo de voz ───────────────────────────────
+    _LANG_TAGS = {
+        'en': 'English vocals, English lyrics',
+        'es': 'Spanish vocals, Spanish lyrics',
+        'fr': 'French vocals, French lyrics',
+        'pt': 'Portuguese vocals, Portuguese lyrics',
+        'de': 'German vocals, German lyrics',
+        'it': 'Italian vocals, Italian lyrics',
+    }
+    _LANG_INSTRUCTIONS = {
+        'es': 'Spanish (castellano)',
+        'en': 'English',
+        'fr': 'French (français)',
+        'pt': 'Portuguese (português)',
+        'de': 'German (Deutsch)',
+        'it': 'Italian (italiano)',
+        'auto': 'the same language as the description',
+    }
+    # Tags de voz más completos para que ACE-Step los reconozca con seguridad
+    _VOCAL_TAGS = {
+        'female': 'female vocal, female singer',
+        'male':   'male vocal, male singer',
+    }
+
+    def _resolve_language(self, language: str, text: str = '') -> str:
+        """Detecta español por heurística de tildes si language='auto', sin llamar a Qwen."""
+        if language != 'auto':
+            return language
+        import re
+        if re.search(r'[áéíóúüñÁÉÍÓÚÜÑ¿¡]', text):
+            return 'es'
+        return 'en'
+
+    def _inject_vocal_type(self, prompt: str, vocal_type: str) -> str:
+        """Fuerza el tipo de voz en el prompt, eliminando siempre el tag contrario."""
+        if vocal_type not in self._VOCAL_TAGS:
+            return prompt
+        tag      = self._VOCAL_TAGS[vocal_type]           # "female vocal, female singer"
+        opposite = self._VOCAL_TAGS['male' if vocal_type == 'female' else 'female']
+
+        # Eliminar TODOS los tags del tipo contrario
+        parts = [t.strip() for t in prompt.split(',')]
+        cleaned = [p for p in parts if p and not any(o.lower() in p.lower() for o in opposite.split(','))]
+
+        # Añadir nuestros tags si no están ya
+        for t in tag.split(','):
+            t = t.strip()
+            if t.lower() not in ' '.join(cleaned).lower():
+                cleaned.insert(0, t)
+
+        return ', '.join(cleaned)
+
+    def _inject_language(self, prompt: str, resolved_lang: str) -> str:
+        """Inyecta los tags de idioma en el prompt, evitando duplicados."""
+        lang_tag = self._LANG_TAGS.get(resolved_lang, '')
+        if not lang_tag:
+            return prompt
+        first_tag = lang_tag.split(',')[0].strip().lower()
+        if first_tag in prompt.lower():
+            return prompt
+        return f"{lang_tag}, {prompt}"
+
+    def generate_prompt(self, description: str) -> str:
         full_prompt = PROMPT_GENERATOR_PROMPT.format(user_prompt=description)
         return self.prompt_qwen(full_prompt)
 
-    def generate_lyrics(self, description: str, duration: float):
-        full_prompt = LYRICS_GENERATOR_PROMPT.format(description=description, duration=duration)
+    def generate_lyrics(self, description: str, duration: float, language: str = 'en') -> str:
+        lang_instruction = self._LANG_INSTRUCTIONS.get(language, 'the same language as the description')
+        full_prompt = LYRICS_GENERATOR_PROMPT.format(
+            description=description,
+            duration=duration,
+            language_instruction=lang_instruction,
+        )
         return self.prompt_qwen(full_prompt)
 
     def generate_categories(self, description: str) -> List[str]:
@@ -174,10 +244,15 @@ class MusicGenServer:
         guidance_scale: float,
         seed: int,
         description_for_categorization: str,
+        vocal_type: str = 'auto',
+        language: str = 'auto',
     ) -> GenerateMusicResponseS3:
+        resolved_lang = self._resolve_language(language, description_for_categorization)
+        prompt = self._inject_vocal_type(prompt, vocal_type)
+        prompt = self._inject_language(prompt, resolved_lang)
         final_lyrics = "[instrumental]" if instrumental else lyrics
         print(f"Prompt: {prompt}")
-        print(f"Lyrics: {final_lyrics}")
+        print(f"Lyrics: {final_lyrics[:120]}...")
 
         s3_client = boto3.client("s3")
         bucket_name = os.environ["S3_BUCKET_NAME"]
@@ -221,6 +296,7 @@ class MusicGenServer:
             s3_key=audio_s3_key,
             cover_image_s3_key=image_s3_key,
             categories=categories,
+            lyrics=final_lyrics if final_lyrics != "[instrumental]" else "",
         )
 
     # ─── CAMBIO 5: endpoint `generate` de prueba ELIMINADO ─────────────────────
@@ -230,47 +306,51 @@ class MusicGenServer:
 
     @modal.fastapi_endpoint(method="POST")
     def generate_from_description(self, request: GenerateFromDescriptionRequest) -> GenerateMusicResponseS3:
+        resolved_lang = self._resolve_language(request.language, request.full_described_song)
         prompt = self.generate_prompt(request.full_described_song)
         lyrics = ""
         if not request.instrumental:
-            lyrics = self.generate_lyrics(request.full_described_song, request.audio_duration)
+            lyrics = self.generate_lyrics(request.full_described_song, request.audio_duration, resolved_lang)
 
-        # CAMBIO 3 aplicado: limpiar VRAM de Qwen antes de correr ACE-Step
         self._flush_llm_cache()
 
         return self.generate_and_upload_to_s3(
             prompt=prompt,
             lyrics=lyrics,
+            vocal_type=request.vocal_type,
+            language=resolved_lang,
             description_for_categorization=request.full_described_song,
-            **request.model_dump(exclude={"full_described_song"}),
+            **request.model_dump(exclude={"full_described_song", "vocal_type", "language"}),
         )
 
     @modal.fastapi_endpoint(method="POST")
     def generate_with_lyrics(self, request: GenerateWithCustomLyricsRequest) -> GenerateMusicResponseS3:
-        # Este endpoint no usa Qwen para letras, pero sí para categorías dentro
-        # de generate_and_upload_to_s3. No hay Qwen antes, así que no hace falta
-        # flush aquí — pero lo dejamos por consistencia ante futuros cambios.
+        resolved_lang = self._resolve_language(request.language, request.lyrics)
         return self.generate_and_upload_to_s3(
             prompt=request.prompt,
             lyrics=request.lyrics,
+            vocal_type=request.vocal_type,
+            language=resolved_lang,
             description_for_categorization=request.prompt,
-            **request.model_dump(exclude={"prompt", "lyrics"}),
+            **request.model_dump(exclude={"prompt", "lyrics", "vocal_type", "language"}),
         )
 
     @modal.fastapi_endpoint(method="POST")
     def generate_with_described_lyrics(self, request: GenerateWithDescribedLyricsRequest) -> GenerateMusicResponseS3:
+        resolved_lang = self._resolve_language(request.language, request.described_lyrics)
         lyrics = ""
         if not request.instrumental:
-            lyrics = self.generate_lyrics(request.described_lyrics, request.audio_duration)
+            lyrics = self.generate_lyrics(request.described_lyrics, request.audio_duration, resolved_lang)
 
-        # CAMBIO 3 aplicado: mismo patrón que generate_from_description
         self._flush_llm_cache()
 
         return self.generate_and_upload_to_s3(
             prompt=request.prompt,
             lyrics=lyrics,
+            vocal_type=request.vocal_type,
+            language=resolved_lang,
             description_for_categorization=request.prompt,
-            **request.model_dump(exclude={"described_lyrics", "prompt"}),
+            **request.model_dump(exclude={"described_lyrics", "prompt", "vocal_type", "language"}),
         )
 
     @modal.fastapi_endpoint(method="GET")
@@ -288,15 +368,13 @@ class MusicGenServer:
         import boto3, tempfile, os
         from pathlib import Path
 
-        s3 = boto3.client('s3',
-            aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
-            region_name=os.environ.get('AWS_S3_REGION_NAME', 'us-east-1')
-        )
+        # Use the same bucket variable and client init as music generation
+        bucket_name = os.environ["S3_BUCKET_NAME"]
+        s3 = boto3.client("s3")
 
         # Descargar el audio de S3 a un archivo temporal
         with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as tmp:
-            s3.download_fileobj(os.environ.get('AWS_STORAGE_BUCKET_NAME', 'gm-storage'), request['s3_key'], tmp)
+            s3.download_fileobj(bucket_name, request['s3_key'], tmp)
             input_path = tmp.name
 
         # Separar con Demucs (modo two-stems: vocals vs no_vocals)
@@ -316,7 +394,7 @@ class MusicGenServer:
             stem_file = model_dir / f'{stem_type}.wav'
             if stem_file.exists():
                 s3_key = f"stems/{request['s3_key'].split('/')[-1]}/{stem_type}.wav"
-                s3.upload_file(str(stem_file), os.environ.get('AWS_STORAGE_BUCKET_NAME', 'gm-storage'), s3_key)
+                s3.upload_file(str(stem_file), bucket_name, s3_key)
                 result[stem_type] = s3_key
 
         return {'stems': result}

@@ -36,7 +36,10 @@ class GenerateView(APIView):
                 lyrics=data.get('lyrics'),
                 described_lyrics=data.get('described_lyrics'),
                 instrumental=data['instrumental'],
+                vocal_type=data.get('vocal_type', 'auto'),
+                language=data.get('language', 'auto'),
                 guidance_scale=data['guidance_scale'],
+                infer_step=data['infer_step'],
                 audio_duration=data['audio_duration'],
             )
         except InsufficientCreditsError as e:
@@ -76,11 +79,16 @@ class SongDetailView(generics.RetrieveUpdateDestroyAPIView):
     http_method_names = ['get', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
-        return (
-            Song.objects
-            .filter(user=self.request.user, deleted_at__isnull=True)
-            .prefetch_related('tags')
-        )
+        user = self.request.user
+        if self.request.method in ('PATCH', 'DELETE'):
+            # Solo el dueño puede modificar o borrar
+            return Song.objects.filter(user=user, deleted_at__isnull=True).prefetch_related('tags')
+        # GET: propias o públicas de otros
+        from django.db.models import Q
+        return Song.objects.filter(
+            Q(user=user) | Q(is_public=True),
+            deleted_at__isnull=True
+        ).prefetch_related('tags')
 
     def partial_update(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -98,7 +106,9 @@ class SongPlayUrlView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
-        song = get_object_or_404(Song, pk=pk, user=request.user, deleted_at__isnull=True)
+        song = get_object_or_404(Song, pk=pk, deleted_at__isnull=True)
+        if song.user != request.user and not song.is_public:
+            return Response({'detail': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
         if not song.audio_s3_key:
             return Response({'detail': 'Audio not available yet.'}, status=status.HTTP_404_NOT_FOUND)
         return Response({'url': get_presigned_url(song.audio_s3_key, expiry_seconds=3600)})
@@ -108,7 +118,9 @@ class SongThumbnailUrlView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
-        song = get_object_or_404(Song, pk=pk, user=request.user, deleted_at__isnull=True)
+        song = get_object_or_404(Song, pk=pk, deleted_at__isnull=True)
+        if song.user != request.user and not song.is_public:
+            return Response({'detail': 'No autorizado.'}, status=status.HTTP_403_FORBIDDEN)
         if not song.thumbnail_s3_key:
             return Response({'detail': 'Thumbnail not available yet.'}, status=status.HTTP_404_NOT_FOUND)
         return Response({'url': get_presigned_url(song.thumbnail_s3_key, expiry_seconds=3600)})
@@ -118,10 +130,10 @@ class SongLikeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
-        # Per-user toggle requires a SongLike model; this atomically increments until then.
-        get_object_or_404(Song, pk=pk, deleted_at__isnull=True)
-        Song.objects.filter(pk=pk).update(like_count=F('like_count') + 1)
-        return Response({'liked': True})
+        song = get_object_or_404(Song, pk=pk, deleted_at__isnull=True)
+        from apps.community.services import toggle_like
+        result = toggle_like(request.user, song)
+        return Response(result)
 
 
 class TagListView(generics.ListAPIView):

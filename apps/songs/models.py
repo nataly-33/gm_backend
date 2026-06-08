@@ -51,11 +51,22 @@ class Song(BaseModel):
     lyrics_source = models.CharField(
         max_length=20, choices=LYRICS_SOURCE_CHOICES, default='user'
     )
+    lyrics_timestamps = models.JSONField(null=True, blank=True)
     instrumental = models.BooleanField(default=False)
+    vocal_type = models.CharField(
+        max_length=10,
+        choices=[('male', 'Male'), ('female', 'Female'), ('auto', 'Auto')],
+        default='auto',
+    )
+    language = models.CharField(
+        max_length=10,
+        choices=[('es', 'Spanish'), ('en', 'English')],
+        default='es',
+    )
 
     # Parámetros de generación (del ZIP)
-    guidance_scale = models.FloatField(default=15.0)
-    infer_step = models.IntegerField(default=60)
+    guidance_scale = models.FloatField(default=10.0)
+    infer_step = models.IntegerField(default=100)
     audio_duration = models.FloatField(default=180.0)
     seed = models.IntegerField(default=-1)
 
@@ -63,6 +74,11 @@ class Song(BaseModel):
     audio_s3_key = models.TextField(null=True, blank=True)
     thumbnail_s3_key = models.TextField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+
+    # Predicción ML (generada por ml/predictor.py antes de llamar a Modal)
+    ml_predicted_genre = models.CharField(max_length=60, null=True, blank=True)
+    ml_predicted_mood  = models.CharField(max_length=60, null=True, blank=True)
+    ml_confidence      = models.JSONField(null=True, blank=True)
 
     # Comunidad
     is_public = models.BooleanField(default=False)
