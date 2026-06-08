@@ -32,7 +32,19 @@ def process_generation_job(self, job_id: str):
         song.audio_s3_key = response['s3_key']
         song.thumbnail_s3_key = response['cover_image_s3_key']
         song.status = 'ready'
-        song.save(update_fields=['audio_s3_key', 'thumbnail_s3_key', 'status', 'updated_at'])
+
+        # Guardar letra generada por IA (solo si el usuario no la proporcionó)
+        if job.mode in ('from_description', 'with_described_lyrics'):
+            generated_lyrics = response.get('lyrics', '')
+            if generated_lyrics:
+                song.lyrics = generated_lyrics
+                song.lyrics_source = 'ai_generated'
+
+        song.save(update_fields=['audio_s3_key', 'thumbnail_s3_key', 'status', 'lyrics', 'lyrics_source', 'updated_at'])
+
+        # Calcular timestamps de letra en background (si hay letra y audio)
+        if not song.instrumental:
+            compute_lyrics_timestamps.delay(str(song.id))
 
         # 5. Guardar tags/categorías generados por el LLM
         _save_categories(song, response.get('categories', []))
@@ -69,6 +81,8 @@ def _build_modal_request(song, mode: str):
         'audio_duration': song.audio_duration,
         'seed': song.seed,
         'instrumental': song.instrumental,
+        'vocal_type': song.vocal_type,
+        'language': song.language,
     }
     if mode == 'from_description':
         return settings.MODAL_ENDPOINT_FROM_DESCRIPTION, {'full_described_song': song.description, **common}
@@ -87,3 +101,70 @@ def _save_categories(song, categories: list):
             defaults={'category': 'genre'}
         )
         SongTag.objects.get_or_create(song=song, tag=tag)
+
+
+@shared_task(bind=True, max_retries=1)
+def compute_lyrics_timestamps(self, song_id: str):
+    """Descarga el audio de una canción, corre Whisper y guarda los timestamps de letra."""
+    import os
+    import shutil
+    import tempfile
+    import boto3
+    from django.db import connection
+    from django.conf import settings
+
+    # Verificar que ffmpeg está disponible
+    if not shutil.which('ffmpeg'):
+        return  # sin ffmpeg no podemos procesar
+
+    try:
+        from apps.songs.models import Song
+        song = Song.objects.get(id=song_id, status='ready')
+        if not song.audio_s3_key or song.instrumental:
+            return
+
+        s3 = boto3.client(
+            's3',
+            region_name=settings.AWS_S3_REGION_NAME,
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        )
+
+        fd, tmp_path = tempfile.mkstemp(suffix='.wav')
+        os.close(fd)
+
+        try:
+            s3.download_file(settings.AWS_STORAGE_BUCKET_NAME, song.audio_s3_key, tmp_path)
+
+            lang = song.language if song.language in ('es', 'en') else None
+
+            # Cerrar la conexión DB antes de la transcripción larga
+            connection.close()
+
+            import whisper
+            model = whisper.load_model('base')
+            result = model.transcribe(
+                tmp_path,
+                language=lang,
+                task='transcribe',
+                fp16=False,
+                verbose=False,
+                word_timestamps=True,
+            )
+
+            segments = result.get('segments', [])
+            timestamps = [
+                {'start': round(seg['start'], 2), 'end': round(seg['end'], 2), 'text': seg['text'].strip()}
+                for seg in segments
+                if seg.get('text', '').strip()
+            ]
+
+            if timestamps:
+                Song.objects.filter(id=song_id).update(lyrics_timestamps=timestamps)
+
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+
+    except Exception as exc:
+        raise self.retry(exc=exc, countdown=120)

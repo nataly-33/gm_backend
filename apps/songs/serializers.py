@@ -16,7 +16,14 @@ class SongGenerateSerializer(serializers.Serializer):
     lyrics = serializers.CharField(required=False, allow_null=True, default=None)
     described_lyrics = serializers.CharField(required=False, allow_null=True, default=None)
     instrumental = serializers.BooleanField(required=False, default=False)
-    guidance_scale = serializers.FloatField(required=False, default=15.0, min_value=1.0, max_value=30.0)
+    vocal_type = serializers.ChoiceField(
+        choices=['male', 'female', 'auto'], required=False, default='auto'
+    )
+    language = serializers.ChoiceField(
+        choices=['es', 'en'], required=False, default='es'
+    )
+    guidance_scale = serializers.FloatField(required=False, default=10.0, min_value=1.0, max_value=30.0)
+    infer_step = serializers.IntegerField(required=False, default=100, min_value=20, max_value=200)
     audio_duration = serializers.FloatField(required=False, default=180.0, min_value=10.0, max_value=300.0)
 
     def validate(self, data):
@@ -41,7 +48,7 @@ class SongLibrarySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Song
-        fields = ['id', 'title', 'status', 'audio_s3_key', 'thumbnail_s3_key', 'tags', 'created_at']
+        fields = ['id', 'title', 'status', 'audio_s3_key', 'thumbnail_s3_key', 'tags', 'is_public', 'created_at']
 
 
 class SongDetailSerializer(serializers.ModelSerializer):
@@ -51,7 +58,7 @@ class SongDetailSerializer(serializers.ModelSerializer):
         model = Song
         fields = [
             'id', 'title', 'description', 'prompt', 'lyrics', 'described_lyrics',
-            'lyrics_source', 'instrumental', 'guidance_scale', 'infer_step',
+            'lyrics_source', 'lyrics_timestamps', 'instrumental', 'guidance_scale', 'infer_step',
             'audio_duration', 'seed', 'audio_s3_key', 'thumbnail_s3_key',
             'status', 'is_public', 'play_count', 'like_count', 'tags',
             'created_at', 'updated_at',
