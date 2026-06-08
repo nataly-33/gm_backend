@@ -22,4 +22,8 @@ urlpatterns = [
     path('api/auth/',    include('apps.users.urls')),
     path('api/credits/', include('apps.credits.urls')),
     path('api/songs/', include('apps.songs.urls')),
+    path('api/stems/', include('apps.stems.urls')),
+    path('api/recommendations/', include('apps.recommendations.urls')),
+    path('api/playlists/', include('apps.playlists.urls')),
+    path('api/reports/', include('apps.reports.urls')),
 ]

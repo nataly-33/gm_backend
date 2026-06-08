@@ -53,30 +53,45 @@ def clear_table(label: str, manager):
     print(estado)
 
 # ── Borrado en orden (respetar foreign keys) ──────────────────────────────────
-print(">>> Limpiando...")
+# Stems
+from apps.stems.models import StemJob, StemFile
+clear_table('StemFile',                        StemFile.objects)
+clear_table('StemJob',                         StemJob.objects)
+
+# Recommendations
+from apps.recommendations.models import ListeningHistory, UserTasteProfile, UserSimilarity
+clear_table('UserSimilarity',                  UserSimilarity.objects)
+clear_table('UserTasteProfile',                UserTasteProfile.objects)
+clear_table('ListeningHistory',                ListeningHistory.objects)
+
+# Playlists
+from apps.playlists.models import Playlist, PlaylistSong
+clear_table('PlaylistSong',                    PlaylistSong.objects)
+clear_table('Playlist',                        Playlist.objects)
+
+# Songs
+from apps.songs.models import GenerationJob, Song, Tag
+clear_table('GenerationJob',                   GenerationJob.objects)
+clear_table('Song',                            Song.objects)
+clear_table('Tag',                             Tag.objects)
+
+# JWT Tokens
 clear_table('BlacklistedToken (JWT)',         BlacklistedToken.objects)
 clear_table('OutstandingToken (JWT)',          OutstandingToken.objects)
+
 # Credits (orden: dependientes primero)
 clear_table('Payment',                         Payment.objects)
 clear_table('PaymentMethod',                   PaymentMethod.objects)
 clear_table('CreditTransaction',               CreditTransaction.objects)
 clear_table('UserSubscription',                UserSubscription.objects)
 clear_table('CreditPlan',                      CreditPlan.objects)
+
 # Users
 clear_table('UserRole',                        UserRole.objects)
 clear_table('User',                            User.objects)
 clear_table('Role',                            Role.objects)
 clear_table('LogEntry (admin logs)',           LogEntry.objects)
 clear_table('Session',                         Session.objects)
-
-# Agregar cuando los modelos existan:
-# from apps.songs.models import SongLike, GenerationJob, Song, Tag
-# from apps.community.models import SongPlay
-# clear_table('SongLike',      SongLike.objects)
-# clear_table('SongPlay',      SongPlay.objects)
-# clear_table('GenerationJob', GenerationJob.objects)
-# clear_table('Song',          Song.objects)
-# clear_table('Tag',           Tag.objects)
 
 # ── Resetear secuencias de autoincremento (PostgreSQL) ────────────────────────
 SEQUENCES = [
