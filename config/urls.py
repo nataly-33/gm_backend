@@ -25,5 +25,8 @@ urlpatterns = [
     path('api/stems/', include('apps.stems.urls')),
     path('api/recommendations/', include('apps.recommendations.urls')),
     path('api/playlists/', include('apps.playlists.urls')),
-    path('api/reports/', include('apps.reports.urls')),
+    path('api/reports/',       include('apps.reports.urls')),
+    path('api/mix/',           include('apps.mix.urls')),
+    path('api/community/',     include('apps.community.urls')),
+    path('api/notifications/', include('apps.notifications.urls')),
 ]
