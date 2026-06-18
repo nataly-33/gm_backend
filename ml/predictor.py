@@ -2,21 +2,34 @@
 Carga el modelo .pkl una sola vez al arrancar Django.
 Expone predict_from_description() para usar en generation_service y recommendations.
 """
-import joblib
+
+from __future__ import annotations
+
 from pathlib import Path
 
-MODEL_PATH = Path(__file__).parent / 'models' / 'music_classifier.pkl'
+import joblib
 
-_model_bundle = None
+MODEL_PATH = Path(__file__).parent / "models" / "music_classifier.pkl"
 
-BPM_RANGES = {
-    'slow':   (60, 90),
-    'medium': (90, 120),
-    'fast':   (120, 160),
+_model_bundle: dict | None = None
+
+BPM_RANGES: dict[str, tuple[int, int]] = {
+    "slow": (60, 90),
+    "medium": (90, 120),
+    "fast": (120, 160),
 }
 
 
-def _load_model():
+def _load_model() -> dict:
+    """
+    Carga el bundle del modelo desde disco de forma perezosa (singleton).
+
+    Returns:
+        Diccionario con los pipelines y encoders del modelo entrenado.
+
+    Raises:
+        FileNotFoundError: Si el archivo .pkl no existe en MODEL_PATH.
+    """
     global _model_bundle
     if _model_bundle is None:
         if not MODEL_PATH.exists():
@@ -32,52 +45,63 @@ def predict_from_description(description: str) -> dict:
     """
     Dado el texto de descripción del usuario, predice los parámetros musicales.
 
-    Retorna:
-    {
-        'genre':          'lofi',
-        'mood':           'sad',
-        'tempo':          'slow',
-        'bpm_range':      (60, 90),
-        'suggested_tags': ['lofi', 'sad', 'slow'],
-        'confidence': {
-            'genre': 0.87,
-            'mood':  0.92,
-            'tempo': 0.78,
-        }
-    }
+    Args:
+        description: Texto libre con la descripción musical ingresada por el usuario.
 
-    Lanza FileNotFoundError si el modelo no está entrenado todavía.
+    Returns:
+        Diccionario con los parámetros predichos::
+
+            {
+                'genre':          'lofi',
+                'mood':           'sad',
+                'tempo':          'slow',
+                'bpm_range':      (60, 90),
+                'suggested_tags': ['lofi', 'sad', 'slow'],
+                'confidence': {
+                    'genre': 0.87,
+                    'mood':  0.92,
+                    'tempo': 0.78,
+                }
+            }
+
+    Raises:
+        FileNotFoundError: Si el modelo no está entrenado todavía.
     """
     bundle = _load_model()
     X = [description]
 
-    genre_pred  = bundle['genre_pipeline'].predict(X)[0]
-    genre_proba = bundle['genre_pipeline'].predict_proba(X)[0].max()
+    genre_pred = bundle["genre_pipeline"].predict(X)[0]
+    genre_proba = bundle["genre_pipeline"].predict_proba(X)[0].max()
 
-    mood_pred  = bundle['mood_pipeline'].predict(X)[0]
-    mood_proba = bundle['mood_pipeline'].predict_proba(X)[0].max()
+    mood_pred = bundle["mood_pipeline"].predict(X)[0]
+    mood_proba = bundle["mood_pipeline"].predict_proba(X)[0].max()
 
-    tempo_pred  = bundle['tempo_pipeline'].predict(X)[0]
-    tempo_proba = bundle['tempo_pipeline'].predict_proba(X)[0].max()
+    tempo_pred = bundle["tempo_pipeline"].predict(X)[0]
+    tempo_proba = bundle["tempo_pipeline"].predict_proba(X)[0].max()
 
-    genre_name = bundle['genre_encoder'].inverse_transform([genre_pred])[0]
-    mood_name  = bundle['mood_encoder'].inverse_transform([mood_pred])[0]
-    tempo_name = bundle['tempo_encoder'].inverse_transform([tempo_pred])[0]
+    genre_name = bundle["genre_encoder"].inverse_transform([genre_pred])[0]
+    mood_name = bundle["mood_encoder"].inverse_transform([mood_pred])[0]
+    tempo_name = bundle["tempo_encoder"].inverse_transform([tempo_pred])[0]
 
     return {
-        'genre':          genre_name,
-        'mood':           mood_name,
-        'tempo':          tempo_name,
-        'bpm_range':      BPM_RANGES.get(tempo_name, (90, 120)),
-        'suggested_tags': list({genre_name, mood_name, tempo_name}),
-        'confidence': {
-            'genre': round(float(genre_proba), 3),
-            'mood':  round(float(mood_proba), 3),
-            'tempo': round(float(tempo_proba), 3),
+        "genre": genre_name,
+        "mood": mood_name,
+        "tempo": tempo_name,
+        "bpm_range": BPM_RANGES.get(tempo_name, (90, 120)),
+        "suggested_tags": list({genre_name, mood_name, tempo_name}),
+        "confidence": {
+            "genre": round(float(genre_proba), 3),
+            "mood": round(float(mood_proba), 3),
+            "tempo": round(float(tempo_proba), 3),
         },
     }
 
 
 def is_model_available() -> bool:
-    """Devuelve True si el .pkl existe y puede cargarse."""
+    """
+    Comprueba si el modelo entrenado está disponible en disco.
+
+    Returns:
+        True si el archivo .pkl existe, False en caso contrario.
+    """
     return MODEL_PATH.exists()
