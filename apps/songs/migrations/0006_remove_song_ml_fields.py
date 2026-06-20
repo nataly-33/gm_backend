@@ -4,7 +4,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('songs', '0005_song_lyrics_timestamps'),
+        ('songs', '0002_song_ml_fields'),
     ]
 
     operations = [
