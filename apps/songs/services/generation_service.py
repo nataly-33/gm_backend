@@ -14,26 +14,13 @@ def request_generation(user, *, title: str, description: str = None,
                        ) -> GenerationJob:
     """
     Punto de entrada para generar una canción.
-    Valida créditos → predice parámetros con ML → crea Song + Job → encola tarea Celery.
+    Valida créditos → crea Song + Job → encola tarea Celery.
+    El modelo ML local no interviene aquí: su rol es potenciar las recomendaciones.
     """
     from apps.credits.services.credit_service import check_balance
 
     if not check_balance(user, required=1):
         raise InsufficientCreditsError("Sin créditos disponibles.")
-
-    # ── Predicción ML: optimiza el prompt antes de llamar a Modal ────────────
-    ml_prediction = None
-    if description:
-        try:
-            from ml.predictor import predict_from_description, is_model_available
-            if is_model_available():
-                ml_prediction = predict_from_description(description)
-                # Si el usuario no especificó un prompt de estilo, usamos el del modelo
-                if not prompt:
-                    prompt = ', '.join(ml_prediction['suggested_tags'])
-        except Exception:
-            # Si el modelo no está listo todavía, la generación continúa sin él
-            pass
 
     mode = _determine_mode(description, prompt, lyrics, described_lyrics)
 
@@ -50,9 +37,6 @@ def request_generation(user, *, title: str, description: str = None,
         guidance_scale=guidance_scale,
         infer_step=infer_step,
         audio_duration=audio_duration,
-        ml_predicted_genre=ml_prediction['genre']      if ml_prediction else None,
-        ml_predicted_mood=ml_prediction['mood']        if ml_prediction else None,
-        ml_confidence=ml_prediction['confidence']      if ml_prediction else None,
         status='draft',
     )
 

@@ -75,11 +75,6 @@ class Song(BaseModel):
     thumbnail_s3_key = models.TextField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
 
-    # Predicción ML (generada por ml/predictor.py antes de llamar a Modal)
-    ml_predicted_genre = models.CharField(max_length=60, null=True, blank=True)
-    ml_predicted_mood  = models.CharField(max_length=60, null=True, blank=True)
-    ml_confidence      = models.JSONField(null=True, blank=True)
-
     # Comunidad
     is_public = models.BooleanField(default=False)
     play_count = models.IntegerField(default=0)
