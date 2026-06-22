@@ -29,4 +29,5 @@ urlpatterns = [
     path('api/mix/',           include('apps.mix.urls')),
     path('api/community/',     include('apps.community.urls')),
     path('api/notifications/', include('apps.notifications.urls')),
+    path('api/karaoke/',       include('apps.karaoke.urls')),
 ]
