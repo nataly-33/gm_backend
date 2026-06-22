@@ -10,8 +10,6 @@ from apps.mix.services.mix_service import (
 )
 
 
-# ── Proyectos ────────────────────────────────────────────────────────────────
-
 class MixProjectListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -48,12 +46,17 @@ class MixProjectDetailView(APIView):
         mix = self._get_mix(request, mix_id)
         if not mix:
             return Response(status=status.HTTP_404_NOT_FOUND)
-        serializer = MixProjectSerializer(mix, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
+
         for field in ['title', 'description', 'bpm']:
             if field in request.data:
                 setattr(mix, field, request.data[field])
         mix.save()
+
+        if 'tag_ids' in request.data:
+            from apps.songs.models import Tag
+            tag_ids = request.data['tag_ids']
+            mix.tags.set(Tag.objects.filter(id__in=tag_ids))
+
         return Response(MixProjectSerializer(mix).data)
 
     def delete(self, request, mix_id):
@@ -63,8 +66,6 @@ class MixProjectDetailView(APIView):
         mix.soft_delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-
-# ── Clips ─────────────────────────────────────────────────────────────────────
 
 class MixClipView(APIView):
     permission_classes = [IsAuthenticated]
@@ -154,8 +155,6 @@ class MixReorderView(APIView):
         return Response({'status': 'ok'})
 
 
-# ── Exportaciones ─────────────────────────────────────────────────────────────
-
 class MixExportView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -176,7 +175,8 @@ class MixExportView(APIView):
         )
 
         from apps.mix.tasks import render_mix
-        render_mix.delay(str(export.id))
+        tag_ids = list(mix.tags.values_list('id', flat=True))
+        render_mix.delay(str(export.id), tag_ids=tag_ids)
 
         return Response({'export_id': str(export.id)}, status=status.HTTP_202_ACCEPTED)
 
