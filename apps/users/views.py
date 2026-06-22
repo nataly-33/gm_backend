@@ -8,13 +8,6 @@ from apps.users.serializers import LoginSerializer, RegisterSerializer, UserProf
 
 
 class RegisterView(APIView):
-    """
-    Endpoint de registro de nuevos usuarios.
-
-    POST /api/users/register/
-    Crea un usuario y retorna tokens JWT de acceso y refresco.
-    """
-
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -33,13 +26,6 @@ class RegisterView(APIView):
 
 
 class LoginView(APIView):
-    """
-    Endpoint de autenticación de usuarios existentes.
-
-    POST /api/users/login/
-    Valida credenciales y retorna tokens JWT de acceso y refresco.
-    """
-
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -56,13 +42,6 @@ class LoginView(APIView):
 
 
 class MeView(APIView):
-    """
-    Endpoint para obtener el perfil del usuario autenticado.
-
-    GET /api/users/me/
-    Requiere autenticación JWT. Retorna los datos del perfil del usuario actual.
-    """
-
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
@@ -70,13 +49,6 @@ class MeView(APIView):
 
 
 class LogoutView(APIView):
-    """
-    Endpoint de cierre de sesión.
-
-    POST /api/users/logout/
-    Invalida el refresh token JWT del usuario para impedir su reutilización.
-    """
-
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -89,13 +61,6 @@ class LogoutView(APIView):
 
 
 class ChangePasswordView(APIView):
-    """
-    Endpoint para cambiar la contraseña del usuario autenticado.
-
-    POST /api/users/change-password/
-    Requiere la contraseña actual y la nueva contraseña.
-    """
-
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -110,3 +75,20 @@ class ChangePasswordView(APIView):
         user.set_password(new_password)
         user.save()
         return Response({"detail": "Contraseña actualizada."})
+
+
+class FCMTokenView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Retorna el token FCM del usuario autenticado."""
+        return Response({'fcm_token': request.user.fcm_token})
+
+    def post(self, request):
+        """Guarda o actualiza el token FCM del usuario."""
+        token = request.data.get('fcm_token')
+        if not token:
+            return Response({'detail': 'Token requerido.'}, status=status.HTTP_400_BAD_REQUEST)
+        request.user.fcm_token = token
+        request.user.save(update_fields=['fcm_token'])
+        return Response({'detail': 'Token guardado.'})

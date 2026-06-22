@@ -1,18 +1,21 @@
 from celery import shared_task
-from django.utils import timezone
+import pydub
+import os
+from decouple import config
+
+ffmpeg_path = config('FFMPEG_PATH', default=None)
+if ffmpeg_path:
+    pydub.AudioSegment.converter = ffmpeg_path
 
 
 @shared_task(bind=True, max_retries=2)
-def render_mix(self, export_id: str):
-    """
-    Tarea Celery que renderiza el mix completo usando pydub.
-    Une todos los clips en orden, aplica efectos, exporta y sube a S3.
-    """
+def render_mix(self, export_id: str, tag_ids: list = None):
     from apps.mix.models import MixExport, MixClip
     from apps.mix.services.audio_editor import (
         download_audio_from_s3, apply_clip_effects, get_clip_s3_key,
     )
     from apps.credits.services.credit_service import check_balance, deduct_credits
+    from apps.songs.models import Song
     from pydub import AudioSegment
     import boto3
     import tempfile
@@ -37,7 +40,6 @@ def render_mix(self, export_id: str):
         if not clips.exists():
             raise ValueError("El mix no tiene clips.")
 
-        # Construir el audio concatenando todos los clips en orden
         final_audio = AudioSegment.empty()
         for clip in clips:
             s3_key     = get_clip_s3_key(clip)
@@ -49,13 +51,11 @@ def render_mix(self, export_id: str):
             finally:
                 os.unlink(audio_path)
 
-        # Exportar al formato solicitado
         with tempfile.NamedTemporaryFile(suffix=f'.{export.format}', delete=False) as tmp:
             bitrate     = export.quality if export.format == 'mp3' else None
             output_path = tmp.name
         final_audio.export(output_path, format=export.format, bitrate=bitrate)
 
-        # Subir a S3
         s3 = boto3.client(
             's3',
             aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
@@ -66,8 +66,9 @@ def render_mix(self, export_id: str):
         s3.upload_file(output_path, settings.AWS_STORAGE_BUCKET_NAME, s3_key)
         os.unlink(output_path)
 
-        # Actualizar mix y export
-        mix.duration_seconds = len(final_audio) // 1000
+        duration_seconds = len(final_audio) // 1000
+
+        mix.duration_seconds = duration_seconds
         mix.output_s3_key    = s3_key
         mix.status           = 'ready'
         mix.save(update_fields=['duration_seconds', 'output_s3_key', 'status'])
@@ -78,6 +79,47 @@ def render_mix(self, export_id: str):
         export.status        = 'ready'
         export.credits_used  = 3
         export.save(update_fields=['output_s3_key', 'status', 'credits_used'])
+
+        if not Song.objects.filter(audio_s3_key=s3_key).exists():
+            song = Song.objects.create(
+                user=user,
+                title=mix.title,
+                description=mix.description or 'Mezcla creada en Mix DJ.',
+                audio_duration=float(duration_seconds),
+                audio_s3_key=s3_key,
+                status='ready',
+                lyrics_source='user',
+            )
+
+            first_clip_with_thumb = (
+                clips
+                .filter(song__isnull=False, song__thumbnail_s3_key__isnull=False)
+                .exclude(song__thumbnail_s3_key='')
+                .select_related('song')
+                .first()
+            )
+            if first_clip_with_thumb:
+                song.thumbnail_s3_key = first_clip_with_thumb.song.thumbnail_s3_key
+                song.save(update_fields=['thumbnail_s3_key'])
+
+            from apps.songs.models import SongTag, Tag
+            tags_to_assign = []
+
+            if tag_ids:
+                tags_to_assign = list(Tag.objects.filter(id__in=tag_ids))
+            else:
+                first_clip_with_song = (
+                    clips
+                    .filter(song__isnull=False)
+                    .select_related('song')
+                    .prefetch_related('song__tags')
+                    .first()
+                )
+                if first_clip_with_song:
+                    tags_to_assign = list(first_clip_with_song.song.tags.all())
+
+            for tag in tags_to_assign:
+                SongTag.objects.get_or_create(song=song, tag=tag)
 
     except Exception as exc:
         try:

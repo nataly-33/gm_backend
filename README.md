@@ -19,6 +19,8 @@ Django 5 + Django REST Framework + Celery + PostgreSQL. API REST para generació
 ```bash
 # Desarrollo
 python manage.py runserver
+# modal
+modal serve ml/modal_music_server.py
 
 # Migraciones
 python manage.py makemigrations
@@ -29,6 +31,10 @@ python manage.py shell < scripts/seed_db.py
 
 # Worker de Celery
 celery -A workers.celery worker -l info
+
+# O
+
+celery -A config worker --loglevel=info -P solo
 ```
 
 ## Variables de entorno
