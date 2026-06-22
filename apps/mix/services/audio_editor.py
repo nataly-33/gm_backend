@@ -4,10 +4,16 @@ Usa pydub para cortes, fades y mezcla.
 Requiere ffmpeg instalado en el sistema.
 """
 from pydub import AudioSegment
+import pydub
+from decouple import config
 import boto3
 import tempfile
 import os
 from django.conf import settings
+
+ffmpeg_path = config('FFMPEG_PATH', default=None)
+if ffmpeg_path:
+    pydub.AudioSegment.converter = ffmpeg_path
 
 
 def download_audio_from_s3(s3_key: str) -> str:

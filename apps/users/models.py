@@ -20,29 +20,29 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser):
-    id                = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    email             = models.EmailField(unique=True)
-    full_name         = models.CharField(max_length=200)
-    avatar_url        = models.TextField(blank=True, default='')
-    is_active         = models.BooleanField(default=True)
-    is_staff          = models.BooleanField(default=False)
-    is_superuser      = models.BooleanField(default=False)
-    credit_balance    = models.IntegerField(default=0)
+    id                 = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    email              = models.EmailField(unique=True)
+    full_name          = models.CharField(max_length=200)
+    avatar_url         = models.TextField(blank=True, default='')
+    is_active          = models.BooleanField(default=True)
+    is_staff           = models.BooleanField(default=False)
+    is_superuser       = models.BooleanField(default=False)
+    credit_balance     = models.IntegerField(default=0)
     stripe_customer_id = models.CharField(max_length=100, blank=True, default='')
-    email_verified_at = models.DateTimeField(null=True, blank=True)
-    last_login_at     = models.DateTimeField(null=True, blank=True)
-    created_at        = models.DateTimeField(auto_now_add=True)
-    updated_at        = models.DateTimeField(auto_now=True)
-    deleted_at        = models.DateTimeField(null=True, blank=True)
+    email_verified_at  = models.DateTimeField(null=True, blank=True)
+    last_login_at      = models.DateTimeField(null=True, blank=True)
+    created_at         = models.DateTimeField(auto_now_add=True)
+    updated_at         = models.DateTimeField(auto_now=True)
+    deleted_at         = models.DateTimeField(null=True, blank=True)
+    fcm_token          = models.TextField(null=True, blank=True, default=None)  # ← nuevo
 
-    USERNAME_FIELD   = 'email'
-    REQUIRED_FIELDS  = ['full_name']
-    objects          = UserManager()
+    USERNAME_FIELD  = 'email'
+    REQUIRED_FIELDS = ['full_name']
+    objects         = UserManager()
 
     def __str__(self):
         return self.email
 
-    # Requerido por Django Admin sin PermissionsMixin
     def has_perm(self, perm, obj=None):
         return self.is_superuser
 

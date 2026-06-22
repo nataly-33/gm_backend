@@ -23,6 +23,7 @@ class MixProject(BaseModel):
     status           = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     output_s3_key    = models.TextField(null=True, blank=True)
     duration_seconds = models.IntegerField(null=True, blank=True)
+    tags             = models.ManyToManyField('songs.Tag', blank=True, related_name='mix_projects')
 
     class Meta:
         ordering = ['-created_at']
@@ -50,12 +51,12 @@ class MixClip(models.Model):
     )
     custom_audio_s3_key = models.TextField(null=True, blank=True)
 
-    # Posición y corte (HU-43)
+    # Posición y corte
     position      = models.IntegerField()
     start_time_ms = models.IntegerField(default=0)
     end_time_ms   = models.IntegerField()
 
-    # Efectos (HU-44)
+    # Efectos
     fade_in_ms  = models.IntegerField(default=0)
     fade_out_ms = models.IntegerField(default=0)
     volume      = models.FloatField(default=1.0)
