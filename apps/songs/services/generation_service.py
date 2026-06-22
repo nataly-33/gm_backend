@@ -43,6 +43,8 @@ def request_generation(user, *, title: str, description: str = None,
     job = GenerationJob.objects.create(user=user, song=song, mode=mode, status='queued')
 
     from apps.songs.tasks import process_generation_job
+    #dln
+    #process_generation_job(str(job.id))
     process_generation_job.delay(str(job.id))
 
     return job

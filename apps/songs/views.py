@@ -75,6 +75,7 @@ class GenerationJobDetailView(generics.RetrieveAPIView):
         return GenerationJob.objects.filter(user=self.request.user)
 
 
+
 class SongLibraryView(generics.ListAPIView):
     """
     Endpoint para listar la biblioteca de canciones del usuario autenticado.
