@@ -1,44 +1,52 @@
 from __future__ import annotations
 
+import time
 import requests
 from django.conf import settings
+
+_COLD_START_WAIT = 30    # segundos entre reintentos mientras Modal arranca
+_COLD_START_ATTEMPTS = 6  # máximo ~2.5 min de espera (5 esperas × 30 s)
 
 
 def call_modal_endpoint(endpoint_url: str, body: dict) -> dict:
     """
     Llama a uno de los endpoints del MusicGenServer desplegado en Modal.
-
-    Envía una petición POST autenticada con las credenciales de Modal y
-    valida que la respuesta contenga las claves esperadas.
-
-    Args:
-        endpoint_url: URL completa del endpoint de Modal a invocar.
-        body: Cuerpo de la petición en formato JSON serializable.
-
-    Returns:
-        Diccionario con la respuesta del servidor. Contiene al menos una
-        de las claves 's3_key' (generación de audio) o 'stems' (separación).
-
-    Raises:
-        ModalGenerationError: Si el servidor responde con un código de error
-            HTTP o si la respuesta no contiene las claves esperadas.
+    Si Modal responde 404 "app is stopped" (cold start), reintenta
+    automáticamente hasta _COLD_START_ATTEMPTS veces antes de fallar.
     """
-    response = requests.post(
-        endpoint_url,
-        json=body,
-        headers={
-            "Content-Type": "application/json",
-            "Modal-Key": settings.MODAL_KEY,
-            "Modal-Secret": settings.MODAL_SECRET,
-        },
-        timeout=600,  # ACE-Step puede tardar hasta 5-10 min
-    )
-    if not response.ok:
-        raise ModalGenerationError(f"Modal {response.status_code}: {response.text[:300]}")
-    data = response.json()
-    if "s3_key" not in data and "stems" not in data:
-        raise ModalGenerationError(f"Respuesta inesperada: {data}")
-    return data
+    headers = {
+        "Content-Type": "application/json",
+        "Modal-Key": settings.MODAL_KEY,
+        "Modal-Secret": settings.MODAL_SECRET,
+    }
+
+    for attempt in range(_COLD_START_ATTEMPTS):
+        response = requests.post(
+            endpoint_url,
+            json=body,
+            headers=headers,
+            timeout=600,  # ACE-Step puede tardar hasta 5-10 min
+        )
+
+        # Cold start: Modal devuelve 404 mientras el app arranca.
+        # Esperamos y reintentamos; el primer request ya disparó el wake-up.
+        if response.status_code == 404 and "is stopped" in response.text:
+            if attempt < _COLD_START_ATTEMPTS - 1:
+                time.sleep(_COLD_START_WAIT)
+                continue
+            raise ModalGenerationError(
+                f"Modal no arrancó tras {_COLD_START_ATTEMPTS} intentos: {response.text[:200]}"
+            )
+
+        if not response.ok:
+            raise ModalGenerationError(f"Modal {response.status_code}: {response.text[:300]}")
+
+        data = response.json()
+        if "s3_key" not in data and "stems" not in data:
+            raise ModalGenerationError(f"Respuesta inesperada: {data}")
+        return data
+
+    raise ModalGenerationError("Modal no respondió.")
 
 
 def get_presigned_url(s3_key: str, expiry_seconds: int = 3600) -> str:

@@ -46,11 +46,20 @@ class SongGenerateSerializer(serializers.Serializer):
 class SongLibrarySerializer(serializers.ModelSerializer):
     tags = TagSerializer(many=True, read_only=True)
     audio_duration = serializers.FloatField(required=False, default=180.0, min_value=10.0, max_value=300.0)
-
+    thumbnail_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Song
-        fields = ['id', 'title', 'status', 'audio_duration', 'audio_s3_key', 'thumbnail_s3_key', 'tags', 'created_at']
+        fields = ['id', 'title', 'status', 'audio_duration', 'audio_s3_key', 'thumbnail_s3_key', 'thumbnail_url', 'tags', 'is_public', 'created_at']
+
+    def get_thumbnail_url(self, obj):
+        if not obj.thumbnail_s3_key:
+            return None
+        try:
+            from ml.modal_client import get_presigned_url
+            return get_presigned_url(obj.thumbnail_s3_key, expiry_seconds=3600)
+        except Exception:
+            return None
 
 
 class SongDetailSerializer(serializers.ModelSerializer):

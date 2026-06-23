@@ -104,7 +104,6 @@ class SongDetailView(generics.RetrieveUpdateDestroyAPIView):
                 .values_list('fcm_token', flat=True)
             )
 
-
             for token in tokens:
                 try:
                     send_push(
