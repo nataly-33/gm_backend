@@ -60,6 +60,7 @@ class GenerationJobDetailView(generics.RetrieveAPIView):
         return GenerationJob.objects.filter(user=self.request.user)
 
 
+
 class SongLibraryView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = SongLibrarySerializer
