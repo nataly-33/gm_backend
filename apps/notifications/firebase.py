@@ -1,9 +1,14 @@
 # apps/notifications/firebase.py
+import os
 import firebase_admin
 from firebase_admin import credentials, messaging
 
+_CERT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..', '..', 'notificacionpush-9000d-firebase-adminsdk-fbsvc-1d2083e78c.json')
+)
+
 if not firebase_admin._apps:
-    cred = credentials.Certificate('notificacionpush-9000d-firebase-adminsdk-fbsvc-1d2083e78c.json')  # ← aquí
+    cred = credentials.Certificate(_CERT)
     firebase_admin.initialize_app(cred)
 
 def send_push(token: str, title: str, body: str, data: dict = None):

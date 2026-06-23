@@ -56,8 +56,21 @@ def process_generation_job(self, job_id: str):
         job.completed_at = timezone.now()
         job.save(update_fields=['credits_used', 'status', 'completed_at'])
 
-        # 7. Notificar al usuario
-        #notify_user(job.user, type='song_ready', reference_id=str(song.id))
+        # 7. Notificar al usuario (in-app + push FCM)
+        from apps.notifications.services import notify_user
+        notify_user(job.user, type='song_ready', reference_id=str(song.id))
+
+        if job.user.fcm_token:
+            try:
+                from apps.notifications.firebase import send_push
+                send_push(
+                    token=job.user.fcm_token,
+                    title='🎵 Tu canción está lista',
+                    body=f'"{song.title}" ya está en tu biblioteca.',
+                    data={'song_id': str(song.id), 'type': 'song_ready'},
+                )
+            except Exception:
+                pass
 
     except Exception as exc:
         try:
