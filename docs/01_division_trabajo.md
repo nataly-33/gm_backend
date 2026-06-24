@@ -220,7 +220,7 @@ from apps.songs.models import Tag
 for name in ['admin', 'user', 'dj']:
     Role.objects.get_or_create(name=name, defaults={'is_system': True})
 
-# Superadmin
+# Superadmin 
 if not User.objects.filter(email='admin@gm.com').exists():
     u = User.objects.create_superuser(email='admin@gm.com', password='admin1234', full_name='Super Admin')
     print(f"Superadmin creado: {u.email}")

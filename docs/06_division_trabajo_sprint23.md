@@ -518,7 +518,7 @@ def recalculate_profile(user):
 ### Backend — Playlists automáticas en `apps/playlists/services/auto_playlist_service.py`
 
 ```python
-# Playlists auto por estado de ánimo — HU-26
+# Playlists auto por estado de ánimo
 def generate_mood_playlists(user):
     """
     Genera playlists automáticas agrupando las canciones del usuario por mood tag.
